@@ -2,8 +2,16 @@
 
 ## Obter uma cópia
 
+Clonar o repositório:
+
 ```
 git clone https://github.com/LycanSec/Arch-Linux_Install-Guide.git
+```
+
+Ou, para obter somente o TXT:
+
+```
+wget https://raw.githubusercontent.com/LycanSec/Arch-Linux_Install-Guide/main/Guia-completo-instala%C3%A7%C3%A3o-Arch-Linux-MATE.txt
 ```
 
 Post original no site: [LycanSec Wordpress](https://lycansec.wordpress.com/2021/01/04/guia-completo-de-instalacao-do-arch-linux-2020-mate/)
