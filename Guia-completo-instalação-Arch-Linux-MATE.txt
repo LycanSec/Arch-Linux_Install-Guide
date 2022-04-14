@@ -1,0 +1,613 @@
+Tutorial feito pelo grupo LycanSec - lycansec.wordpress.com
+
+Esse tutorial tem como objetivo ser um guia para que a instalação de uma ISO da distribuição Arch Linux seja completada com sucesso de forma relativamente simples e direta.
+
+Esse tutorial foi escrito em Janeiro de 2021 (e revisado em Abril de 2022), caso esteja lendo ele muito tempo depois disso, pode ser que um passo ou outro tenha mudado um pouco, apesar de o processo de instalação do Arch mudar pouco de uma release para outra.
+
+O processo de instalação com outra (ou nenhuma) interface gráfica é exatamente o mesmo com poucas adaptações, tenha em mente que será necessário um gerenciador de janelas (Window Manager) e um ambiente de área de trabalho (Desktop Environment).
+
+Para facilitar para aqueles que não terão acesso à internet e/ou interface gráfica durante a instalação, fizemos esse TXT com o mesmo conteúdo desta página (incluindo os links).
+
+Antes de começar
+
+Não poderíamos recomendar o processo aqui mostrado para um usuário que está iniciando no mundo linux, entretanto, para os curiosos, entusiastas e pessoas que já tem alguma familiaridade com sistemas Linux, ele é um prato cheio
+Caso você não tenha usado Linux alguma vez, recomendamos que pesquise sobre as distribuições Linux disponíveis e de preferência com uma grande comunidade de usuários e boa documentação. Para referência, sugerimos Debian, Mint e Manjaro.
+
+Por conta do tamanho do processo de instalação, tivemos que tentar resumir esse tutorial, por conta disso, nós assumimos que as seguintes condições são verdade:
+
+O equipamento possui rede via cabo e a rede possui DHCP
+Instalação limpa do Arch sozinho (sem dual boot, mas daremos dicas para fazer com dual boot)
+O modo de boot será UEFI (https://pt.wikipedia.org/wiki/Unified_Extensible_Firmware_Interface) e o HD será colocado no modo de particionamento GPT (https://pt.wikipedia.org/wiki/Tabela_de_Parti%C3%A7%C3%A3o_GUID)
+O pendrive USB com a ISO do Arch (https://archlinux.org/download/) pronta
+A SWAP (https://pt.wikipedia.org/wiki/Mem%C3%B3ria_virtual) (https://wiki.archlinux.org/index.php/Swap_(Portugu%C3%AAs)) numa particao separada
+
+Instalação passo a passo
+
+1- Bootar a ISO e verificar a conexão com a internet
+
+ping -c 3 google.com
+
+
+2- Carregar o layout de teclado ABNT2
+
+loadkeys i386/qwerty/br-abnt2.map.gz
+
+
+3- Atualizar a data e hora do sistema
+
+timedatectl set-ntp true
+
+
+4- Particionar o disco
+
+4.1- Mostrar os discos conectados e as partições existentes:
+
+fdisk -l
+
+#Ou
+
+lsblk
+
+4.2- Usar o cfdisk para fazer o particionamento
+
+cfdisk /dev/sda
+
+4.2.1- Se o disco ainda não for particionado, escolher o modo de partição GPT
+
+4.2.2- Criar as partições
+
+Selecionar o espaco livre e criar tres particoes:
+
+1- EFI (ESP) [/dev/sda1]
+2- SWAP [/dev/sda2]
+3- / (Dados) [dev/sda3]
+
+Dica: No caso de um SSD NVMe ou outros tipos de armazenamento não SATA (https://pt.wikipedia.org/wiki/Serial_ATA), o nome das partições muda.
+
+Nota: Como sugestão de particionamento, sugerimos: EFI [300MB ou +], SWAP [entre 1.5GB e o total de RAM instalada no sistema] e / [Todo o resto do espaço livre]
+
+Ao final, selecionar "Write" e depois apertar Enter para salvar as alterações
+
+Sair clicando em "Quit"
+
+Dica: Caso esteja fazendo dual boot com o Windows, use a própria partição EFI que o Windows já criou (não formatar ela) e a partição de dados deve ser redimensionada (cuidado com perdas de dados) https://canaltech.com.br/windows/como-redimensionar-particoes-no-windows-10/
+
+4.2.3- Formatar as particoes
+
+mkfs.ext4 /dev/sda3
+
+mkswap /dev/sda2
+
+mkfs.fat -F 32 /dev/sda1
+
+Mais informações: https://wiki.archlinux.org/index.php/File_systems_(Portugu%C3%AAs)#Criar_um_sistema_de_arquivos
+
+
+5- Montar as partições
+
+mount /dev/sda3 /mnt/
+swapon /dev/sda2
+
+mkdir /mnt/efi
+mount /dev/sda1 /mnt/efi
+
+
+6- Instalar o sistema
+
+[Opcional] 6.1- Selecionar os mirrors
+
+nano /etc/pacman.d/mirrorlist
+
+6.2- Instalar os pacotes essenciais
+
+pacstrap /mnt base linux linux-firmware
+
+Dica: Caso vá utilizar o AUR ou compilar pacotes de modo geral, adicione o pacote base-devel no comando acima
+
+7- Configurar o novo sistema
+
+7.1- Criar o arquivo de fstab (https://wiki.archlinux.org/index.php/Fstab_(Portugu%C3%AAs))
+
+genfstab -U /mnt >> /mnt/etc/fstab
+
+7.2- Mudar para a raiz da instalação
+
+arch-chroot /mnt
+
+7.3- Configurar a hora do sistema
+
+ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime
+
+7.3.1- Mudar o horário da BIOS/Hardware para o universal (https://pt.wikipedia.org/wiki/Tempo_Universal_Coordenado)
+
+hwclock --systohc --utc
+
+7.4- Instalar o editor de texto e a funcionalidade de auto complete no bash
+
+pacman -S nano bash-completion
+
+OBS: Pode ser necessário recarregar o bash para que o auto complete funcione. Para isso, basta digitar "bash" (sem aspas) no terminal.
+
+7.5- Gerar o locale (https://pt.wikipedia.org/wiki/Locale)
+
+nano /etc/locale.gen
+
+Encontrar e descomentar a linha
+
+#pt_BR.UTF-8 UTF-8
+
+Salvar (Ctrl + O) e sair (Ctrl + X)
+
+Executar:
+
+locale-gen
+
+7.5.1- Configurar o locale
+
+nano /etc/locale.conf
+
+Escrever dentro do arquivo:
+
+LANG=pt_BR.UTF-8
+
+Salvar e sair
+
+7.5.2- Configurar o teclado do terminal
+
+nano /etc/vconsole.conf
+
+Escrever dentro do arquivo:
+
+KEYMAP=br-abnt2
+
+Salvar e sair
+
+7.6- Configurar o hostname
+
+nano /etc/hostname
+
+Escrever dentro desse arquivo o nome pelo qual seu computador será conhecido na rede interna
+
+Salvar e sair
+
+[Opcional] 7.7- Configurar o arquivo de hosts
+
+Caso sua rede necessite de um domínio, ou para configurar IPs fixos permanentes
+
+nano /etc/hosts
+
+127.0.0.1	localhost
+::1		localhost
+127.0.1.1	myhostname.localdomain	myhostname
+
+Dica: Substitua 127.0.1.1 pelo IP fixo da rede (exemplo 192.168.10.100), myhostname.localdomain pelo domínio da rede local e myhostname pelo mesmo nome que foi colocado no arquivo do passo 7.5
+
+Mais informações: https://wiki.archlinux.org/index.php/Network_configuration_(Portugu%C3%AAs)#Endere%C3%A7o_IP_est%C3%A1tico
+
+7.8- Instalar um gerenciador de conexões de rede
+
+pacman -S networkmanager
+
+7.9- Mudar a senha da conta root
+
+passwd
+
+7.10- Configurar os updates de microcode (https://wiki.archlinux.org/index.php/Microcode)
+
+pacman -S intel-ucode
+
+Dica: o nome do pacote para CPUs AMD é amd-ucode
+
+7.11- Bootloader
+
+Para acessar o sistema operacional na nova instalação, será preciso instalar um bootloader (https://wiki.archlinux.org/index.php/Arch_boot_process#Boot_loader)
+
+7.11.1- Instalar o bootloader
+
+Instalaremos o GRUB (https://wiki.archlinux.org/index.php/GRUB_(Portugu%C3%AAs))
+
+pacman -S grub efibootmgr
+
+Dica: para multiplos sistemas (dualboot), instale tambem o pacote os-prober
+
+grub-install --target=x86_64-efi --efi-directory=efi/ --bootloader-id=GRUB
+
+Dica: pode ser necessário adaptar o parâmetro efi-directory. Mude GRUB para o nome que desejar que apareça na lista de boot (boot menu) do computador
+
+Saida de exemplo:
+
+Installing for x86_64-efi platform.
+Installation finished. No error reported.
+
+7.11.2- Configurar
+
+grub-mkconfig -o /boot/grub/grub.cfg
+
+Saida
+
+Generating grub configuration file ...
+[...]
+done
+
+
+8- Pos instalacao
+
+Sair do terminal que foi aberto no passo 7.2:
+
+exit
+#Ou
+(Ctrl + D)
+
+E então entrar na nova instalação pelo disco
+
+reboot
+
+O computador reiniciará. Após o boot, tenha certeza de que o sistema iniciou pelo grub, e então selecione a primeira opção "Arch Linux".
+
+Nesse momento, o sistema iniciará e será apresentado um prompt de login. As credenciais são root e a senha criada no passo 7.7.
+
+Ao logar, será direcionado para um terminal bash (https://pt.wikipedia.org/wiki/Bash)
+
+8.1- Criar uma conta de usuário comum
+
+Usar a conta de administrador o tempo todo é inseguro, então criaremos uma conta de usuário
+
+useradd -m -G storage,power,wheel -s /bin/bash NOME
+
+8.1.1- Criar a senha da conta
+
+passwd NOME
+
+8.2- Conectar na internet
+
+8.2.1- Levantar a interface, caso ainda não esteja
+
+ip link set dev enp3s0f1 up
+
+8.2.2- Iniciar o gerenciador
+
+systemctl start NetworkManager
+
+8.3- Escalação de privilegios
+
+É possível usar o su, porem não é uma boa prática o compartilhamento da senha da conta de root, usar o su gera uma falta de logs pois o usuário que usa o su toma a conta de root para si temporariamente (https://diolinux.com.br/linux/diferenca-entre-sudo-e-su-no-linux.html) (https://4fasters.com.br/2019/01/30/sudo-o-que-e-sudo-su-no-linux/)
+
+8.3.1- Instalar o sudo
+
+pacman -S sudo
+
+8.3.2- Configurar
+
+EDITOR=nano visudo
+
+Descomentar a linha
+
+# %wheel ALL=(ALL) ALL
+
+Salvar e fechar
+
+[Opcional] 8.4- Habilitar o repositório multilib
+
+Fazer isso possibilita instalar pacotes de programas 32 bits, o que é recomendado caso vá compilar pacotes
+
+8.4.1- Editar o arquivo de configuração
+
+nano /etc/pacman.conf
+
+Descomentar a linha
+
+#[multilib]
+#Include = /etc/pacman.d/mirrorlist
+
+Salvar e fechar
+
+8.4.2- Sincronizar os repositorios:
+
+pacman -Sy
+
+Dica: Use -Syy para forçar a sincronização de todos os repositórios
+
+[Opcional] 8.5- NumLock e manter as mensagens na tela
+
+Seguem aqui as instruções (em inglês)
+https://wiki.archlinux.org/index.php/Activating_numlock_on_bootup
+https://wiki.archlinux.org/index.php/General_troubleshooting#Console_messages
+
+8.6- Instalar um ambiente gráfico
+
+8.6.1- Instalando um gerenciador de tela
+
+pacman -S lxdm
+
+Segue uma lista com mais opções: https://wiki.archlinux.org/index.php/Display_manager#Graphical
+
+[Opcional] 8.6.1.1- Configurando o lxdm
+
+nano /etc/lxdm/lxdm.conf
+
+Algumas opções interessantes são:
+
+#ativa o num lock assim que a tela de login for carregada
+numlock=1
+#Remove a lista de usuários da tela de login
+[userlist]
+disable=1
+
+8.6.2- Instalando um ambiente de área de trabalho
+
+pacman -S mate mate-extra
+
+Mais opções aqui (https://wiki.archlinux.org/index.php/Desktop_environment#List_of_desktop_environments)
+
+8.6.3- Teste a configuração
+
+systemctl start lxdm.service
+
+Aqui nesse ponto, a janela de login deve abrir (uma imagem com fundo azul)
+
+Na barra inferior, clique na opção chamada "Desktop" ou "Área de Trabalho" e mude o seu valor de "Default"(Padrão) para "MATE", então coloque a senha do usuário normal e entre.
+
+Se tudo correu bem, nesse momento você já deve estar de frente com uma desktop com fundo verde e alguns ícones.
+
+8.6.4- Fazer a tela de login ser carregada automaticamente
+
+systemctl enable lxdm.service
+
+Recomendamos que um reboot seja feito na máquina nesse ponto e a partir daqui, logar na conta de usuário e caso seja necessário rodar algum comando como root, usar o sudo (que foi configurado no passo 8.3).
+
+8.7- Habilitar o teclado ABNT2
+
+Para habilitar no MATE:
+
+sudo localectl set-x11-keymap br abnt2
+
+Dica: Se mesmo depois de rodar o comando acima o teclado ainda estiver no padrão us, vá até Sistema > Preferências > Hardware > Teclado e depois entre na aba "Layouts" e clique no botão "Restaurar Padrões".
+
+Mais informações aqui
+https://www.vivaolinux.com.br/dica/Teclado-ABNT2-definitivo-no-Archlinux
+https://medium.com/@galdino1993/instala%C3%A7%C3%A3o-e-configura%C3%A7%C3%A3o-do-arch-linux-625c406e56ff
+
+8.8- Carregar a rede ao iniciar o sistema
+
+sudo systemctl enable NetworkManager.service
+
+8.8.1- Habilitar o gerenciamento de redes via interface gráfica
+
+sudo pacman -S network-manager-applet
+
+8.9- Habilitar o suporte aos sistemas de arquivo NTFS e FAT
+
+sudo pacman -S ntfs-3g dosfstools
+
+Dica: Lista completa aqui (https://wiki.archlinux.org/index.php/File_systems_(Portugu%C3%AAs)#Tipos_de_sistemas_de_arquivos)
+
+
+9- Dicas extras
+
+9.1- Habilite o atalho de teclado para abrir um terminal
+
+Navegue até: Sistema > Preferencias > Hardware > Atalhos de teclado
+
+Na janela que abrir, encontrar "Abrir um terminal" e dar um duplo clique com o botão esquerdo do mouse. Então, pressionar no teclado o atalho desejado (nós recomendamos Ctrl + Alt + T que é o padrão no Ubuntu, por exemplo).
+
+9.2- Instale um navegador
+
+sudo pacman -S firefox
+
+Dica: Instale tambem os pacotes pulseaudio e hunspell-en_US
+
+Dica2: Existem diversas opções de navegadores disponíveis (https://wiki.archlinux.org/index.php/List_of_applications#Graphical), como o chromium, por exemplo.
+
+9.3- Habilite as funções do touchpad em notebooks
+
+Navegar até Sistema > Preferencias > Hardware > Mouse, depois entrar na aba "Touchpad"
+
+Habilite a opção "Permitir cliques do mouse com o touchpad"
+
+Dica: Habilitar outras opções que julgar necessárias
+
+9.4- Fontes do texto
+
+Aqui estão listadas algumas fontes:
+
+sudo pacman -S ttf-dejavu noto-fonts ttf-roboto ttf-anonymous-pro ttf-hack
+
+Sinta-se livre para instalar algumas outras (https://wiki.archlinux.org/index.php/Fonts#Font_packages) especialmente se houver a necessidade de uma fonte oriental (https://wiki.archlinux.org/index.php/Fonts#Chinese,_Japanese,_Korean,_Vietnamese)
+
+Dica: Ao instalar um pacote de fontes, pode ser que seja necessário reiniciar o programa onde ela será usada, pois alguns programas somente carregam as fontes ao iniciar.
+
+9.5- Habilitar o AUR
+
+O Arch User Repository dá a possibilidade dos usuários empacotarem programas por conta própria e distribuirem na distro.
+
+Para mais informações: https://wiki.archlinux.org/index.php/Arch_User_Repository_(Portugu%C3%AAs)
+
+9.5.1- Instalar os pacotes de pré-requisito
+
+sudo pacman -S --needed git base-devel
+
+9.5.2- Fazer o download do código fonte
+
+git clone https://aur.archlinux.org/yay.git
+
+9.5.3- Instalar o yay
+
+cd yay
+makepkg -si
+
+Nota: Existe também uma lista de AUR helpers disponível nesse link https://wiki.archlinux.org/index.php/AUR_helpers
+
+9.5.4- Usando o yay
+
+Para instalar um pacote
+
+yay -S PACOTE
+
+Para buscar por um pacote
+
+yay PACOTE
+
+Dica: A medida que pacotes forem sendo instalados e desinstalados, dependências podem gerar pacotes orfãos, e estes podem ser removidos por meio do comando "yay -Yc" (sem aspas)
+
+Dependência é um pacote que precisa ser instalado junto à outro para que este funcione, por exemplo, ao instalar o pacote gimp (https://archlinux.org/packages/extra/x86_64/gimp/) (editor de imagens), ele traz como dependências alguns pacotes com bibliotecas e etc.
+Já um pacote órfão é um pacote que ainda está instalado no sistema mas não é mais dependência de nenhum outro pacote porque seus dependentes foram removidos, por exemplo, ao remover o gimp, pode ser que várias das bibliotecas fiquem ainda no sistema.
+
+Para mais informações: https://github.com/Jguer/yay#yay
+
+Dica: Para remover um pacote, pode ser usado o pacman
+
+9.6- Adicionar suporte a impressoras
+
+sudo pacman -S cups
+
+Iniciar o serviço (na primeira vez)
+
+sudo systemctl start cups.service
+
+[Opcional] Habilitar para que o serviço seja carregado em todo boot
+
+sudo systemctl enable cups.service
+
+Para acessar as configurações, acessar no navegador
+
+127.0.0.1:631
+
+9.7- Personalização básica do tema
+
+sudo pacman -S gnome-icon-theme gnome-icon-theme-extras gnome-themes-extra gtk-engines
+
+Outros temas podem ser encontrados aqui: https://archlinux.org/packages/?sort=&q=theme&maintainer=&flagged=
+
+9.7.1- Esconder o ícone de "Computador" na desktop
+
+gsettings set org.mate.caja.desktop computer-icon-visible false
+
+9.7.2- Esconder os ícones de mídias removíveis
+
+gsettings set org.mate.caja.desktop volumes-visible false
+
+Outras opcoes: https://wiki.archlinux.org/index.php/MATE#Show_or_hide_desktop_icons
+
+9.8- Instalar um editor de texto
+
+O libre office é um programa open source e compatível com os formatos do Micrsoft Word
+
+Mais informações: https://pt-br.libreoffice.org/descubra/libreoffice/
+
+sudo pacman -S libreoffice-fresh
+
+Dica: Para instalar a versão estável, instale o pacote libreoffice-still
+
+9.8.1- Instalar o corretor de texto para Português do Brasil
+
+yay -i hunspell-pt-br
+
+9.8.2- Exemplo de configuração no LibreOffice
+
+Acessar: Ferramentas > Opções > Opções de linguagem > Línguas
+
+Ajuste as configurações da seção Formatos do modo que desejar
+
+Na seção Língua padrão para documentos, mude o campo Ocidental para "Português (Brasil)"
+
+Clicar em "OK" para salvar
+
+9.9- Instalar os pacotes de som
+
+sudo pacman -S pulseaudio pulseaudio-jack pulseaudio-bluetooth pulseaudio-equalizer
+
+Outros pacotes que podem interessar: pulseaudio-alsa alsa-firmware pavucontrol
+
+Mais informações: https://wiki.archlinux.org/index.php/Sound_system_(Portugu%C3%AAs)
+
+10.0- Instalar os pacotes Wifi e Bluetooth
+
+10.1- Wifi
+
+No nosso caso, o adaptador wireless (intel 7265) já tem o seu driver incluído no pacote linux-firmware (que foi instalado no passo 6.2)
+
+Para instalar um adaptador que não está incluído no kernel, use o link abaixo para referência
+
+Mais info: https://wiki.archlinux.org/index.php/Network_configuration_(Português)/Wireless_(Português)
+
+10.2- Bluetooth
+
+10.2.1- Instalar os pacotes para habilitar o protocolo
+
+sudo pacman -S bluez bluez-utils
+
+[Opcional] 10.2.2- Instalar um programa com interface gráfica para gerenciamento
+
+sudo pacman -S blueman
+
+Dica: Outros programas podem ser encontrados aqui (https://wiki.archlinux.org/index.php/Bluetooth#Graphical)
+
+10.2.3- Verificar se o módulo já está carregado no kernel
+
+lsmod | grep btusb
+
+Exemplo de saida:
+
+btusb                  65536  0
+btrtl                  24576  1 btusb
+btbcm                  20480  1 btusb
+btintel                32768  1 btusb
+bluetooth             741376  5 btrtl,btintel,btbcm,btusb
+
+10.2.3- Habilitar o módulo no Kernel e ativar o serviço do Bluetooth
+
+#Habilita o módulo
+sudo modprobe btusb
+#Inicia o serviço no sistema
+sudo systemctl start bluetooth.service
+#Inicia o serviço no sistema durante o boot
+sudo systemctl enable bluetooth.service
+
+
+11-Em caso de problemas durante a instalação
+
+Reboot e entrar na ISO live USB
+
+11.1- Montar as particoes novamente
+
+mount /dev/sda3 /mnt
+mount /dev/sda1 /mnt/efi
+swapon /dev/sda2
+
+Dica: Adaptar de acordo com a sua necessidade
+
+11.2- Mudar de ambiente
+
+arch-chroot /mnt
+
+E então poderá fazer o que for necessário
+
+12- Dicas extras para dualboot
+
+12.1- Dualboot com o Windows 8, 8.1, 10 ou superior
+
+Também serve para solução do Grub que sumiu após o boot no Windows (deixe o windows como primeira opção de boot se for o caso, pois algumas placas mãe bloqueiam e/ou reescrevem o GRUB)
+
+grub-install --target=x86_64-efi --efi-directory=efi/ --bootloader-id=grub
+
+Gerar/atualizar a config:
+
+grub-mkconfig -o /boot/grub/grub.cfg
+
+Atenção: desabilitar o Fast boot na BIOS e no Windows (https://wiki.archlinux.org/index.php/Dual_boot_with_Windows_(Portugu%C3%AAs)#Configura%C3%A7%C3%A3o_do_Windows) e também o secure boot(https://wiki.archlinux.org/index.php/Unified_Extensible_Firmware_Interface/Secure_Boot#Disabling_Secure_Boot)
+
+Mais info: https://wiki.archlinux.org/index.php/Unified_Extensible_Firmware_Interface#Windows_changes_boot_order
+https://bbs.archlinux.org/viewtopic.php?id=227836
+
+Referência
+
+https://wiki.archlinux.org/index.php/Installation_guide
+Links ao longo do post
+
+Atualização em 12/04/2022 às 15h: Atualizamos a ordem dos comandos da seção 7
+
+Até a próxima!
+
+Tutorial feito pelo grupo LycanSec - lycansec.wordpress.com
+
+Fonte: https://lycansec.wordpress.com/2021/01/04/guia-completo-de-instalacao-do-arch-linux-2020-mate/
